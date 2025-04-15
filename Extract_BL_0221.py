@@ -1,12 +1,12 @@
-from antares import *
 import numpy as np
 import os
-import scipy.spatial
-import scipy.integrate
 import csv
+from antares import *
 import h5py
 from scipy.signal import savgol_filter
 from scipy.signal import welch
+import scipy.spatial
+import scipy.integrate
 import re
 
 
@@ -35,7 +35,7 @@ class ProbeDataExporter:
        and saved in a file named "T10_WPS_A<sensor_tag_without_space>_Spectrum.csv".
     """
     
-    def __init__(self, probe_filepath, chord:float=0.3048, Uref:float=30.0, alpha:int=10):
+    def __init__(self, probe_filepath, chord:float=0.3048, Uref:float=30.0, alpha:int=10, LE_dist:float=1.245):
         """
         Parameters:
             probe_filepath: Path to the HDF5 file containing the probe data.
@@ -46,6 +46,7 @@ class ProbeDataExporter:
         self.chord = chord
         self.Uref = Uref
         self.alpha = alpha
+        self.LE_dist = LE_dist
         match = re.search(r'Group_([A-Z])_Probe', probe_filepath)  # Searches for 'Group_A_Probe' pattern.
         if match:
             self.group_letter = match.group(1)
@@ -78,7 +79,7 @@ class ProbeDataExporter:
                 xBL = group.attrs["x"]
                 yBL = group.attrs["y"]
                 zBL = group.attrs["z"]
-                xBL = (xBL - 1.225)*np.cos(self.alpha*np.pi/180)/self.chord
+                xBL = ((xBL - self.LE_dist)*np.cos(self.alpha*np.pi/180))/self.chord
                 yBL = yBL/self.chord
                 # For this example, we assume the WPS data are the same as the BL data.
                 idx_str = f"{i:03d}"
@@ -170,7 +171,7 @@ class BoundaryLayerExtractor:
     
     def __init__(self, input_directory, avbp_mesh, avbp_mean_solution, probe_file, casename,
                  uref, rhoref, pref, mu_lam, nb_pts, h_max,threshold_hmax_factor,
-                 extraction_side="both", chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.2694):
+                 extraction_side="both", chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.2694, LE_dist:float = 1.245):
         # Simulation and extraction parameters
         self.input_directory = input_directory
         self.avbp_mesh = avbp_mesh
@@ -186,6 +187,7 @@ class BoundaryLayerExtractor:
         self.chord = chord
         self.alpha = alpha
         self.cut_z = cut_z
+        self.LE_dist = LE_dist
         #Loading the .h5 file for probe settings
         # Load probe data from from the probe file in .h5 format
         sensor_tags = []
@@ -256,9 +258,15 @@ class BoundaryLayerExtractor:
         profil = patches['Airfoil_Surface', 'Airfoil_Trailing_Edge', 'Airfoil_Side_LE',
                          'Airfoil_Side_Mid', 'Airfoil_Side_TE']
         
+        myt = Treatment('merge')
+        myt['base'] = profil
+        myt['duplicates_detection'] = False
+        myt['tolerance_decimals'] = 13
+        merged = myt.execute()
+
         # Cut the surface with a plane (using z = -0.225 as the origin)
         t = Treatment('cut')
-        t['base'] = profil
+        t['base'] = merged
         t['type'] = 'plane'
         t['origin'] = [0., 0., self.cut_z]
         t['normal'] = [0., 0., 1.]
@@ -425,6 +433,8 @@ class BoundaryLayerExtractor:
                 Pt_extract = [self.separated[zn][0]['x'][ind_extract],
                               self.separated[zn][0]['y'][ind_extract],
                               self.separated[zn][0]['z'][ind_extract]]
+                print("Extracting Boundary Layer at point index: {0}, coordinates: {1} of {2}".format(ind, Pt_extract,x_point))
+                
                 gradPds = self.separated[zn][0]['dPdS'][ind_extract]
                 Cp = self.separated[zn][0]['Cp'][ind_extract]
                 
@@ -561,7 +571,8 @@ class BoundaryLayerExtractor:
                 else:
                     zone_class = "ZPG"
                 chord = self.chord
-                x_norm = (Pt_extract[0] - 1.225)*np.cos(self.alpha*180/np.pi) / chord
+                x_norm = ((Pt_extract[0] - self.LE_dist)*np.cos(self.alpha*np.pi/180)) / chord
+                print("extracting at {0} with original {1}".format(x_norm, Pt_extract[0]))
                 y_norm = Pt_extract[1] / chord
                 z_norm = np.abs(Pt_extract[2] / chord)
                 csv_row = [
@@ -679,7 +690,7 @@ def main():
     mu_lam = 1.78e-5
     chord = 0.3048
     alpha = 10
-    input_directory = '/home/p/plavoie/denggua1/scratch/Bombardier_LES/B_10AOA_LES'
+    input_directory = '../../'
     avbp_mean_solution = 'PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5'
     avbp_mesh = 'MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5'
     probe_data = 'Group_C_Probe_Data.h5'
