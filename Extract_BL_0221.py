@@ -95,7 +95,7 @@ class ProbeDataExporter:
             writer.writerow(header)
             for row in rows:
                 f.write(fmt.format(int(row[0]), row[1], row[2], row[3], int(row[4]), row[5], row[6], row[7], row[8])+ "\n")  # Fixed-width formatting
-        print("CSV file written:", csv_filename) 
+        print("CSV coordinate file written:",  os.path.basename(os.path.normpath(csv_filename))) 
     
     def export_pressure_spectra(self):
         """
@@ -144,7 +144,7 @@ class ProbeDataExporter:
                     # Write data rows
                     for row in spectrum_data:
                         f_csv.write(fmt.format(row[0], row[1]) + "\n")  # Fixed-width formatting
-                print("CSV file written:", csv_filename)
+                print("CSV WPS file written:",  os.path.basename(os.path.normpath(csv_filename))) 
 
 class BoundaryLayerExtractor:
     """
@@ -170,7 +170,7 @@ class BoundaryLayerExtractor:
     
     def __init__(self, input_directory, avbp_mesh, avbp_mean_solution, probe_file, casename,
                  uref, rhoref, pref, mu_lam, nb_pts, h_max,threshold_hmax_factor,
-                 extraction_side="both", chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.225):
+                 extraction_side="both", chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.2694):
         # Simulation and extraction parameters
         self.input_directory = input_directory
         self.avbp_mesh = avbp_mesh
@@ -224,6 +224,7 @@ class BoundaryLayerExtractor:
         """
         store_vtk(True)
         # Read mesh
+        print('\n----> Reading the mesh')
         r = Reader('hdf_avbp')
         r['filename'] = os.path.join(self.input_directory, self.avbp_mesh)
         r['shared'] = True
@@ -231,6 +232,7 @@ class BoundaryLayerExtractor:
         print('The mesh has been read')
         
         # Read mean solution
+        print('\n----> Reading the mean solution')
         r = Reader('hdf_antares')
         r['filename'] = os.path.join(self.input_directory, self.avbp_mean_solution)
         r['base'] = b
@@ -465,14 +467,14 @@ class BoundaryLayerExtractor:
                 line[0][0]['h'] = h_vals
                 
                 # Optionally export the BL line (here only if suction side is processed)
-                if zn == 'suction_side':
-                    w = Writer('column')
-                    outputname = os.path.join(self.export_dir, 'BL_extract_{0}_{1}'.format(self.sensors_tag[ind], zn))
-                    print("Exporting:", outputname)
-                    print("Normal vector:", N_extract)
-                    w['filename'] = outputname
-                    w['base'] = line
-                    w.dump()
+                # if zn == 'suction_side':
+                #     w = Writer('column')
+                #     outputname = os.path.join(self.export_dir, 'BL_extract_{0}_{1}'.format(self.sensors_tag[ind], zn))
+                #     print("Exporting:", outputname)
+                #     print("Normal vector:", N_extract)
+                #     w['filename'] = outputname
+                #     w['base'] = line
+                #     w.dump()
 
                 # Create a new h array: 150 evenly spaced points from 0 to 0.1
                 h_new = np.linspace(0, 0.1, 150)
@@ -669,6 +671,7 @@ class BoundaryLayerExtractor:
 # Example usage:
 # ===============================
 def main():
+    print(f'\n{"Starting Boundary Layer Extraction":=^100}\n')
     casename = "B_10AOA_30"
     uref = 30.0
     rhoref = 1.225
@@ -676,14 +679,19 @@ def main():
     mu_lam = 1.78e-5
     chord = 0.3048
     alpha = 10
-    input_directory = '/Volumes/LES Data/B_10AOA_LES'
-    avbp_mean_solution = 'PostProc/Average_Extract/Averaged_Solution_Reduced_Variables.h5'
+    input_directory = '/home/p/plavoie/denggua1/scratch/Bombardier_LES/B_10AOA_LES'
+    avbp_mean_solution = 'PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5'
     avbp_mesh = 'MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5'
-    probe_data = 'Group_A_Probe_Data.h5'
-
+    probe_data = 'Group_C_Probe_Data.h5'
+    extracted_side = 'suction'
     nb_pts = 750
     h_max = 0.015
     threshold_hmax_factor = 0.4
+    chord = 0.3048
+    alpha = 10
+    #cut_z = -0.2694                    # Group A/B
+    cut_z = -0.12746313                 # Group C
+    #cut_z = -0.10753585                # Group D/E
     
     probe_file = os.path.join(os.getcwd(), probe_data)
     # Extracting the probe data 
@@ -695,8 +703,9 @@ def main():
     # Create the BoundaryLayerExtractor instance using the loaded probe data.
     extractor = BoundaryLayerExtractor(input_directory, avbp_mesh, avbp_mean_solution, probe_file ,casename,
                                          uref, rhoref, pref, mu_lam, nb_pts, h_max, threshold_hmax_factor,
-                                         extraction_side="suction", chord=chord)
+                                         extraction_side=extracted_side, chord=chord, alpha=alpha, cut_z=cut_z)
     bl_results = extractor.run()
+    print(f'\n{"Completed Boundary Layer Extraction":=^100}\n')
 
 if __name__ == "__main__":
     main()
