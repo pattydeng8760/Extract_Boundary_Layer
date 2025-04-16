@@ -693,16 +693,16 @@ def main():
     input_directory = '../../'
     avbp_mean_solution = 'PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5'
     avbp_mesh = 'MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5'
-    probe_data = 'Group_C_Probe_Data.h5'
-    extracted_side = 'suction'
+    probe_data = 'Group_E_Probe_Data.h5'
+    extracted_side = 'pressure'
     nb_pts = 750
     h_max = 0.015
     threshold_hmax_factor = 0.4
     chord = 0.3048
     alpha = 10
     #cut_z = -0.2694                    # Group A/B
-    cut_z = -0.12746313                 # Group C
-    #cut_z = -0.10753585                # Group D/E
+    #cut_z = -0.12746313                 # Group C
+    cut_z = -0.10753585                # Group D/E
     
     probe_file = os.path.join(os.getcwd(), probe_data)
     # Extracting the probe data 
