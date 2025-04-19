@@ -205,6 +205,16 @@ class BoundaryLayerExtractor:
                 # Read the x value from the group's attributes
                 x_val = f[group].attrs["x"]
                 extract_points_xcoor.append(x_val)
+            if "Group_F" in probe_file:
+                group1 = np.array([f['Probe_01'].attrs['x'], f['Probe_01'].attrs['y'], f['Probe_01'].attrs['z']])
+                group9 = np.array([f['Probe_09'].attrs['x'], f['Probe_09'].attrs['y'], f['Probe_09'].attrs['z']])
+                line_group = group9-group1
+                self.normal = np.array([-line_group[1], line_group[0], 0])
+                self.origin = group1
+            else:
+                self.normal = np.array([0, 0, 1])
+                self.origin = np.array([0, 0, cut_z])
+        
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
         new_dir = os.path.join(os.getcwd(),'T'+str(alpha)+'_Group_'+self.sensors_tag[0][0])
@@ -258,20 +268,21 @@ class BoundaryLayerExtractor:
         profil = patches['Airfoil_Surface', 'Airfoil_Trailing_Edge', 'Airfoil_Side_LE',
                          'Airfoil_Side_Mid', 'Airfoil_Side_TE']
         
+        # Merge all the zones to one unified surface
         myt = Treatment('merge')
         myt['base'] = profil
         myt['duplicates_detection'] = False
         myt['tolerance_decimals'] = 13
         merged = myt.execute()
 
-        # Cut the surface with a plane (using z = -0.225 as the origin)
+        # Cut the surface with a plane to extract the profile at the specific line
         t = Treatment('cut')
         t['base'] = merged
         t['type'] = 'plane'
-        t['origin'] = [0., 0., self.cut_z]
-        t['normal'] = [0., 0., 1.]
-        profil_2d = t.execute()
+        t['origin'] = [0., 0., self.cut_z] if self.origin is None else self.origin        # Default cut_z value if not provided
+        t['normal'] = [0., 0., 1.] if self.normal is None else self.normal                # Default normal value if not provided
         
+        profil_2d = t.execute()
         # Unwrap the resulting line
         t = Treatment('unwrapline')
         t['base'] = profil_2d
@@ -413,6 +424,8 @@ class BoundaryLayerExtractor:
         if self.extraction_side in ["suction", "pressure"]:
             target_zone = self.extraction_side + "_side"
             zones_to_process = [target_zone] if target_zone in self.separated else []
+        if self.extraction_side in ['tip']:
+            zones_to_process = ['suction_side']
         else:
             zones_to_process = list(self.separated.keys())
         
@@ -433,7 +446,7 @@ class BoundaryLayerExtractor:
                 Pt_extract = [self.separated[zn][0]['x'][ind_extract],
                               self.separated[zn][0]['y'][ind_extract],
                               self.separated[zn][0]['z'][ind_extract]]
-                print("Extracting Boundary Layer at point index: {0}, coordinates: {1} of {2}".format(ind, Pt_extract,x_point))
+                print("Extracting Boundary Layer at point index: {0}, coordinates: {1} of {2}".format(ind, np.array(Pt_extract),x_point))
                 
                 gradPds = self.separated[zn][0]['dPdS'][ind_extract]
                 Cp = self.separated[zn][0]['Cp'][ind_extract]
@@ -452,11 +465,12 @@ class BoundaryLayerExtractor:
                 
                 chi_angle_sign = 1.0
                 pz = np.array([0., 0., 1.0])
-                if zn == 'suction_side':
+                if zn == 'suction_side' and self.extraction_side == 'suction':
                     N_extract = np.cross(chi_angle_sign * pz, T_extract)
-                else:
+                elif zn == 'pressure_side' and self.extraction_side == 'pressure':
                     N_extract = np.cross(T_extract, chi_angle_sign * pz)
-                
+                elif self.extraction_side == 'tip':
+                    N_extract = np.array([0,0,1])
                 # Define the end point for the BL line (normal direction)
                 Pt_extract_end_line = np.array(Pt_extract) + self.h_max * N_extract
                 
@@ -693,16 +707,13 @@ def main():
     input_directory = '../../'
     avbp_mean_solution = 'PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5'
     avbp_mesh = 'MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5'
-    probe_data = 'Group_E_Probe_Data.h5'
-    extracted_side = 'pressure'
+    probe_data = 'Group_F_Probe_Data.h5'
+    extracted_side = 'tip'
     nb_pts = 750
     h_max = 0.015
     threshold_hmax_factor = 0.4
     chord = 0.3048
     alpha = 10
-    #cut_z = -0.2694                    # Group A/B
-    #cut_z = -0.12746313                 # Group C
-    cut_z = -0.10753585                # Group D/E
     
     probe_file = os.path.join(os.getcwd(), probe_data)
     # Extracting the probe data 
@@ -714,7 +725,7 @@ def main():
     # Create the BoundaryLayerExtractor instance using the loaded probe data.
     extractor = BoundaryLayerExtractor(input_directory, avbp_mesh, avbp_mean_solution, probe_file ,casename,
                                          uref, rhoref, pref, mu_lam, nb_pts, h_max, threshold_hmax_factor,
-                                         extraction_side=extracted_side, chord=chord, alpha=alpha, cut_z=cut_z)
+                                         extraction_side=extracted_side, chord=chord, alpha=alpha)
     bl_results = extractor.run()
     print(f'\n{"Completed Boundary Layer Extraction":=^100}\n')
 
