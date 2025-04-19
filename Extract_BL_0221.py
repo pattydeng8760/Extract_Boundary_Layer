@@ -170,8 +170,8 @@ class BoundaryLayerExtractor:
     """
     
     def __init__(self, input_directory, avbp_mesh, avbp_mean_solution, probe_file, casename,
-                 uref, rhoref, pref, mu_lam, nb_pts, h_max,threshold_hmax_factor,
-                 extraction_side="both", chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.2694, LE_dist:float = 1.245):
+                uref, rhoref, pref, mu_lam, nb_pts, h_max,threshold_hmax_factor, 
+                chord:float = 0.3048, alpha:int = 10, cut_z:float = -0.2694, LE_dist:float = 1.245):
         # Simulation and extraction parameters
         self.input_directory = input_directory
         self.avbp_mesh = avbp_mesh
@@ -211,9 +211,15 @@ class BoundaryLayerExtractor:
                 line_group = group9-group1
                 self.normal = np.array([-line_group[1], line_group[0], 0])
                 self.origin = group1
+                self.extraction_side = 'tip'
+            if "Group_A" or "Group_C" or "Group_D" in probe_file:
+                self.extraction_side = 'suction'
+            elif "Group_B" or "Group_E" in probe_file:
+                self.extraction_side = 'pressure'
             else:
                 self.normal = np.array([0, 0, 1])
                 self.origin = np.array([0, 0, cut_z])
+                self.extraction_side = 'both'
         
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
@@ -222,7 +228,7 @@ class BoundaryLayerExtractor:
             os.mkdir(new_dir)
         self.export_dir = new_dir
         # New flag: extraction_side can be "both" (default), "suction", or "pressure"
-        self.extraction_side = extraction_side.lower()
+        #self.extraction_side = extraction_side.lower()
         # Data containers
         self.solution = None
         self.profile = None
@@ -265,7 +271,7 @@ class BoundaryLayerExtractor:
         a planar cut, and then unwraps the resulting line.
         """
         patches = self.solution[self.solution.families['Patches']]
-        profil = patches['Airfoil_Surface', 'Airfoil_Trailing_Edge', 'Airfoil_Side_LE',
+        profil = patches['Airfoil_Surface', 'Airfoil_Side_LE',
                          'Airfoil_Side_Mid', 'Airfoil_Side_TE']
         
         # Merge all the zones to one unified surface
@@ -434,9 +440,9 @@ class BoundaryLayerExtractor:
             # For computing dp/dx from the separated profile:
             P_array = self.separated[zn][0]['P']
             x_array = self.separated[zn][0]['x']
-            P_smooth = savgol_filter(P_array, window_length=91, polyorder=2)  # Smoothing the pressure field before computing the gradient
+            P_smooth = savgol_filter(P_array, window_length=121, polyorder=2)  # Smoothing the pressure field before computing the gradient
             dpdx_array = np.gradient(P_smooth, x_array)
-            dpdx_array = savgol_filter(dpdx_array, window_length=51, polyorder=2)  # Smoothing the gradient
+            dpdx_array = savgol_filter(dpdx_array, window_length=151, polyorder=2)  # Smoothing the gradient
             export_filename = os.path.join(self.export_dir,'CFD_extraction_{0:s}_{1:s}.txt'.format(self.casename, zn))
             BL_data = np.zeros((len(self.extract_points_xcoor), 10))
             
@@ -566,7 +572,8 @@ class BoundaryLayerExtractor:
                 )
                 dUdh = np.diff(line[0][0]['Umag'])/dh[0:-1]
                 tau_w = self.mu_lam * dUdh[0]
-                dpdx = dpdx_array[ind_extract]
+                #dpdx = dpdx_array[ind_extract]
+                dpdx = gradPds[ind_extract]
                 
                 # Local density extracted from the profile (assumed available)
                 rho_local = self.separated[zn][0]['rho'][ind_extract]
@@ -707,27 +714,36 @@ def main():
     input_directory = '../../'
     avbp_mean_solution = 'PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5'
     avbp_mesh = 'MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5'
-    probe_data = 'Group_F_Probe_Data.h5'
-    extracted_side = 'tip'
+    probe_data_list = ['Group_A_Probe_Data.h5', 'Group_B_Probe_Data.h5', 'Group_C_Probe_Data.h5', 
+                       'Group_D_Probe_Data.h5', 'Group_E_Probe_Data.h5', 'Group_F_Probe_Data.h5']
+    #probe_data = 'Group_F_Probe_Data.h5'
+    #extracted_side = 'tip'
     nb_pts = 750
     h_max = 0.015
     threshold_hmax_factor = 0.4
     chord = 0.3048
     alpha = 10
     
-    probe_file = os.path.join(os.getcwd(), probe_data)
-    # Extracting the probe data 
-    exporter = ProbeDataExporter(probe_file, chord=chord, Uref=uref, alpha=alpha)
-    # Export the coordinates file.
-    exporter.export_coordinates()
-    exporter.export_pressure_spectra()
+    for probe_data in probe_data_list:
+        try:
+            print(f'\n{"Processing Probe Data":=^100}\n')
+            print(f'Probe Data: {probe_data}')
+            # Load the probe data file
+            probe_file = os.path.join(os.getcwd(), probe_data)
+            # Extracting the probe data 
+            exporter = ProbeDataExporter(probe_file, chord=chord, Uref=uref, alpha=alpha)
+            # Export the coordinates file.
+            exporter.export_coordinates()
+            exporter.export_pressure_spectra()
 
-    # Create the BoundaryLayerExtractor instance using the loaded probe data.
-    extractor = BoundaryLayerExtractor(input_directory, avbp_mesh, avbp_mean_solution, probe_file ,casename,
-                                         uref, rhoref, pref, mu_lam, nb_pts, h_max, threshold_hmax_factor,
-                                         extraction_side=extracted_side, chord=chord, alpha=alpha)
-    bl_results = extractor.run()
-    print(f'\n{"Completed Boundary Layer Extraction":=^100}\n')
+            # Create the BoundaryLayerExtractor instance using the loaded probe data.
+            extractor = BoundaryLayerExtractor(input_directory, avbp_mesh, avbp_mean_solution, probe_file ,casename,
+                                                uref, rhoref, pref, mu_lam, nb_pts, h_max, threshold_hmax_factor,
+                                                chord=chord, alpha=alpha)
+            bl_results = extractor.run()
+            print(f'\n{"Completed Boundary Layer Extraction":=^100}\n')
+        except Exception as e:
+            print(f"Error processing {probe_data}: {e}")
 
 if __name__ == "__main__":
     main()
