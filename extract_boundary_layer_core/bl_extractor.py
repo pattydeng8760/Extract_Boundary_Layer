@@ -75,17 +75,15 @@ class BoundaryLayerExtractor:
                 self.normal = np.array([-line_group[1], line_group[0], 0])
                 self.origin = group1
                 self.extraction_side = 'tip'
-            elif "Group_A" or "Group_C" or "Group_D" in probe_file:
-                self.extraction_side = 'suction'
-                self.origin = np.array([0, 0, cut_z])
-            elif "Group_B" or "Group_E" in probe_file:
-                self.extraction_side = 'pressure'
-                self.origin = np.array([0, 0, cut_z])
             else:
                 self.normal = np.array([0, 0, 1])
                 self.origin = np.array([0, 0, cut_z])
                 self.extraction_side = 'both'
-        
+            if "Group_A" or "Group_C" or "Group_D" in probe_file:
+                self.extraction_side = 'suction'
+            elif "Group_B" or "Group_E" in probe_file:
+                self.extraction_side = 'pressure'
+
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
         new_dir = os.path.join(os.getcwd(),'T'+str(alpha)+'_Group_'+self.sensors_tag[0][0])
