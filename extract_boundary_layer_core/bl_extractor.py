@@ -75,7 +75,7 @@ class BoundaryLayerExtractor:
                 self.normal = np.array([-line_group[1], line_group[0], 0])
                 self.origin = group1
                 self.extraction_side = 'tip'
-            if "Group_A" or "Group_C" or "Group_D" in probe_file:
+            elif "Group_A" or "Group_C" or "Group_D" in probe_file:
                 self.extraction_side = 'suction'
                 self.origin = np.array([0, 0, cut_z])
             elif "Group_B" or "Group_E" in probe_file:
@@ -150,8 +150,8 @@ class BoundaryLayerExtractor:
         t = Treatment('cut')
         t['base'] = merged
         t['type'] = 'plane'
-        t['origin'] = [0., 0., self.cut_z] if self.origin is None else self.origin        # Default cut_z value if not provided
-        t['normal'] = [0., 0., 1.] if self.normal is None else self.normal                # Default normal value if not provided
+        t['origin'] = self.origin        # Default cut_z value if not provided
+        t['normal'] = self.normal                # Default normal value if not provided
         
         profil_2d = t.execute()
         # Unwrap the resulting line
@@ -438,7 +438,8 @@ class BoundaryLayerExtractor:
                 dUdh = np.diff(line[0][0]['Umag'])/dh[0:-1]
                 tau_w = self.mu_lam * dUdh[0]
                 #dpdx = dpdx_array[ind_extract]
-                dpdx = gradPds[ind_extract]
+                
+                dpdx = gradPds
                 
                 # Local density extracted from the profile (assumed available)
                 rho_local = self.separated[zn][0]['rho'][ind_extract]

@@ -22,17 +22,18 @@ It supports:
 ```
 project_root/
 │
-├── extract_boundary_layer_core/
+├── extract_boundary_layer_core/  # Module 
 │   ├── __init__.py
 │   ├── probe_exporter.py         # Contains ProbeDataExporter
 │   ├── bl_extractor.py           # Contains BoundaryLayerExtractor
 │
-├── extract_boundary_layer.py                       # CLI entry point
+├── extract_boundary_layer.py                       # CLI entry point, main file
+├── run_extract.py                                  # wrapper
 ```
 
 ---
 
-## 🚀 How to Use
+## How to Use
 
 Run the tool from the terminal:
 
@@ -59,7 +60,7 @@ python main.py \
 - Performs FFT analysis and saves pressure spectra as CSV
 - Auto-creates output folders per AoA and probe group
 
-### ✅ BoundaryLayerExtractor
+### BoundaryLayerExtractor
 - Loads AVBP mesh + mean solution
 - Extracts and unwraps airfoil surface
 - Separates suction/pressure sides
