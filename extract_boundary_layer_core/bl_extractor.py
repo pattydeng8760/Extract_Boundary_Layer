@@ -134,7 +134,7 @@ class BoundaryLayerExtractor:
         a planar cut, and then unwraps the resulting line.
         """
         patches = self.solution[self.solution.families['Patches']]
-        profil = patches['Airfoil_Surface', 'Airfoil_Side_LE',
+        profil = patches['Airfoil_Surface', 'Airfoil_Side_LE', 'Airfoil_Trailing_Edge',
                          'Airfoil_Side_Mid', 'Airfoil_Side_TE']
         
         # Merge all the zones to one unified surface
@@ -291,9 +291,9 @@ class BoundaryLayerExtractor:
         print('\n----> Extracting boundary layer')
         # Determine which zones to process based on the flag.
         if self.extraction_side in ["suction", "pressure"]:
-            target_zone = self.extraction_side + "_side"
+            target_zone = self.extraction_side.lower() + "_side"
             zones_to_process = [target_zone] if target_zone in self.separated else []
-        if self.extraction_side in ['tip']:
+        elif self.extraction_side in ['tip']:
             zones_to_process = ['suction_side']
         else:
             zones_to_process = list(self.separated.keys())

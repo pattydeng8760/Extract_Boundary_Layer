@@ -33,34 +33,34 @@ def extract_boundary_layer(args=None):
         args = parse_args()
         
     for probe_file in args.probe_files:
-        try:
-            probe_path = os.path.abspath(probe_file)
-            print(f"\nProcessing: {probe_path}\n")
+        #try:
+        probe_path = os.path.abspath(probe_file)
+        print(f"\nProcessing: {probe_path}\n")
 
-            exporter = ProbeDataExporter(
-                probe_path, chord=args.chord, Uref=args.uref, alpha=args.alpha
-            )
-            exporter.export_coordinates()
-            exporter.export_pressure_spectra()
+        exporter = ProbeDataExporter(
+            probe_path, chord=args.chord, Uref=args.uref, alpha=args.alpha
+        )
+        exporter.export_coordinates()
+        exporter.export_pressure_spectra()
 
-            extractor = BoundaryLayerExtractor(
-                args.input_dir,
-                args.mesh,
-                args.solution,
-                probe_path,
-                args.uref,
-                args.rhoref,
-                args.pref,
-                args.mu_lam,
-                args.nb_pts,
-                args.h_max,
-                args.thresh,
-                chord=args.chord,
-                alpha=args.alpha
-            )
-            extractor.run()
-        except Exception as e:
-            print(f"Failed to process {probe_file}: {e}")
+        extractor = BoundaryLayerExtractor(
+            args.input_dir,
+            args.mesh,
+            args.solution,
+            probe_path,
+            args.uref,
+            args.rhoref,
+            args.pref,
+            args.mu_lam,
+            args.nb_pts,
+            args.h_max,
+            args.thresh,
+            chord=args.chord,
+            alpha=args.alpha
+        )
+        extractor.run()
+        # except Exception as e:
+        #     print(f"Failed to process {probe_file}: {e}")
         print(f'\n{"Complete Boundary Layer Extraction":=^100}\n')
 
 if __name__ == "__main__":
