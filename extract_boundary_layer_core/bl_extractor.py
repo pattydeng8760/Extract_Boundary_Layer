@@ -261,6 +261,7 @@ class BoundaryLayerExtractor:
             # Compute dP/dS along the profile
             ds_grad = np.gradient(s)
             dPsds = np.gradient(self.separated[zn][0]['P']) / ds_grad
+            dPsds = savgol_filter(dPsds, window_length=71, polyorder=2)  # Smoothing the gradient
             self.separated[zn][0]['dPdS'] = dPsds
 
     def extract_BL_parameters_and_export(self):
