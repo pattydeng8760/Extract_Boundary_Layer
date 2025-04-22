@@ -79,10 +79,12 @@ class BoundaryLayerExtractor:
                 self.normal = np.array([0, 0, 1])
                 self.origin = np.array([0, 0, cut_z])
                 self.extraction_side = 'both'
-            if "Group_A" or "Group_C" or "Group_D" in probe_file:
+            if any(group in probe_file for group in ["Group_A", "Group_C", "Group_D"]):
                 self.extraction_side = 'suction'
-            elif "Group_B" or "Group_E" in probe_file:
+            elif any(group in probe_file for group in ["Group_B", "Group_E"]):
                 self.extraction_side = 'pressure'
+            elif "Group_F" in probe_file:
+                self.extraction_side = 'tip'
 
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
