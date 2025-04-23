@@ -88,7 +88,7 @@ class BoundaryLayerExtractor:
 
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
-        new_dir = os.path.join(os.getcwd(),'T'+str(alpha)+'_Group_'+self.sensors_tag[0][0])
+        new_dir = os.path.join(os.getcwd(),"T"+f"{self.alpha:02d}_Group_"+self.sensors_tag[0][0])
         if not os.path.exists(new_dir):
             os.mkdir(new_dir)
         self.export_dir = new_dir
@@ -385,7 +385,7 @@ class BoundaryLayerExtractor:
                 csv_header = ["h", "Ut"]
                 fmt = "{:10.8f} {:10.8f}"  # Adjust width as needed
                 f_ind = str(ind).zfill(3)
-                filetemp  = "T"+self.sensors_tag[ind][0]+str(self.alpha)+"_BL_"+f_ind+".csv"
+                filetemp  = "T"+self.sensors_tag[ind][0]+f"{self.alpha:02d}_BL_"+f_ind+".csv"
                 csv_filename = os.path.join(self.export_dir,filetemp)
                 if os.path.exists(csv_filename):
                     os.remove(csv_filename)
@@ -508,7 +508,7 @@ class BoundaryLayerExtractor:
         
         csv_header = ["id", "zone", "x", "y", "z", "chord", "Uref", "Ue", "delta", "delta_star", "theta", "tau_w",
                       "cp", "cf", "beta_c", "Rt", "Rtheta", "PI", "u_tau", "mu", "rho", "nu", "dpdx"]
-        file_temp = "T"+self.sensors_tag[0][0]+str(self.alpha)+"_BLparams_Zones.csv"
+        file_temp = "T"+self.sensors_tag[0][0]+f"{self.alpha:02d}_BLparams_Zones.csv"
         csv_filename = os.path.join(self.export_dir, file_temp)
         if os.path.exists(csv_filename):
             os.remove(csv_filename)
@@ -524,7 +524,7 @@ class BoundaryLayerExtractor:
         """writing the flow conditions of the simulation to a csv
         """
         csv_header = ["Mach", "Reynolds", "alpha", "Uinf"]
-        file_temp = "T"+self.sensors_tag[0][0]+str(self.alpha)+"_flowconditions.csv"
+        file_temp = "T"+self.sensors_tag[0][0]+f"{self.alpha:02d}_flowconditions.csv"
         csv_filename = os.path.join(self.export_dir, file_temp)
         mach = self.uref / 343.0
         reynolds = self.rhoref * self.uref * self.chord / self.mu_lam

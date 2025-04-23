@@ -50,7 +50,7 @@ class ProbeDataExporter:
         match = re.search(r'Group_([A-Z])_Probe', probe_filepath)  # Searches for 'Group_A_Probe' pattern.
         if match:
             self.group_letter = match.group(1)
-        new_dir = os.path.join(os.getcwd(),'T'+str(alpha)+'_Group_'+self.group_letter)
+        new_dir = os.path.join(os.getcwd(),"T"+f"{self.alpha:02d}_Group_"+self.group_letter)
         if not os.path.exists(new_dir):
             os.mkdir(new_dir)
         self.export_dir = new_dir
@@ -86,7 +86,7 @@ class ProbeDataExporter:
                 row = [idx_str, xBL, yBL, zBL, idx_str, xBL, yBL, zBL, 0]
                 rows.append(row)
         fmt = "{:03d} {:10.8f} {:10.8f} {:10.8f} {:03d} {:10.8f} {:10.8f} {:10.8f} {:2.4f} "  # Adjust width as needed
-        filename = "T"+self.group_letter+str(self.alpha)+"_coordinates.csv"
+        filename = "T" + self.group_letter + f"{self.alpha:02d}_coordinates.csv"
         csv_filename = os.path.join(self.export_dir, filename)
         if os.path.exists(csv_filename):
             os.remove(csv_filename)
@@ -131,7 +131,7 @@ class ProbeDataExporter:
                 tag_num = group_name.split("_")[1]
                 tag_num = str(int(tag_num)-1)
                 f_ind = tag_num.zfill(3)
-                filetemp  = "T"+self.group_letter+str(self.alpha)+"_WPS_"+f_ind+".csv"
+                filetemp  = "T"+self.group_letter+f"{self.alpha:02d}_WPS_"+f_ind+".csv"
                 csv_filename = os.path.join(self.export_dir, filetemp)
                 if os.path.exists(csv_filename):
                     os.remove(csv_filename)
