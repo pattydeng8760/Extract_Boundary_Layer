@@ -508,7 +508,7 @@ class BoundaryLayerExtractor:
         
         csv_header = ["id", "zone", "x", "y", "z", "chord", "Uref", "Ue", "delta", "delta_star", "theta", "tau_w",
                       "cp", "cf", "beta_c", "Rt", "Rtheta", "PI", "u_tau", "mu", "rho", "nu", "dpdx"]
-        file_temp = "T"+self.sensors_tag[0][0]+f"{self.alpha:02d}_BLparams_Zones.csv"
+        file_temp = "T"+self.sensors_tag[0][0]+f"{self.alpha:02d}_BLparams_zones.csv"
         csv_filename = os.path.join(self.export_dir, file_temp)
         if os.path.exists(csv_filename):
             os.remove(csv_filename)
