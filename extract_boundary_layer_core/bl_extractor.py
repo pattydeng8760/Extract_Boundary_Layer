@@ -275,7 +275,7 @@ class BoundaryLayerExtractor:
         The following additional parameters are computed:
           - Normalized x: (x - 1.225) / 0.3048
           - beta_c = (dp/dx * theta) / tau_w
-          - Rt = delta_star * u_tau / Ue
+          - Rt = delta * u_tau^2/(Ue*nu)
           - Rtheta = Ue * theta / nu
           - PI = 0.8*(beta_c+0.5)**(0.75)
           - u_tau = sqrt(tau_w / rho)
@@ -427,6 +427,7 @@ class BoundaryLayerExtractor:
                     print("    Criterium on total pressure not reached for cut {0}".format(ind))
                 
                 Ue = line[0][0]['Umag'][idx_delta99]
+                delta = line[0][0]['h'][idx_delta99]
                 # Compute displacement thickness (delta_star) and momentum thickness (theta)
                 delta_star = scipy.integrate.simpson(
                     1.0 - line[0][0]['Umag'][:idx_delta99] / Ue,
@@ -445,7 +446,7 @@ class BoundaryLayerExtractor:
                 
                 dpdx = gradPds
                 beta_c = (dpdx * theta) / tau_w if tau_w != 0 else 0.0
-                Rt = delta_star * (u_tau/Ue) if Ue != 0 else 0.0
+                Rt = delta*(u_tau**2)/(Ue*nu) if Ue != 0 else 0.0
                 
                 Rtheta = (Ue * theta / nu) if nu != 0 else 0.0
                 PI = 0.8 * (beta_c + 0.5)**(0.75) if beta_c != 0 else 0.0
@@ -491,7 +492,7 @@ class BoundaryLayerExtractor:
                 
                 BL_data[ind, 0] = Pt_extract[0]
                 BL_data[ind, 1] = Pt_extract[1]
-                BL_data[ind, 2] = line[0][0]['h'][idx_delta99]
+                BL_data[ind, 2] = delta
                 BL_data[ind, 3] = Ue
                 BL_data[ind, 4] = delta_star
                 BL_data[ind, 5] = theta
