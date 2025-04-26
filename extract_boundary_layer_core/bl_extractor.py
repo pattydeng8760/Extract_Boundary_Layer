@@ -274,10 +274,10 @@ class BoundaryLayerExtractor:
         
         The following additional parameters are computed:
           - Normalized x: (x - 1.225) / 0.3048
-          - beta_c = (dp/dx * delta_star) / tau_w
-          - Rt = Ue * delta / nu, where nu = mu / rho
+          - beta_c = (dp/dx * theta) / tau_w
+          - Rt = delta_star * u_tau / Ue
           - Rtheta = Ue * theta / nu
-          - PI = (dp/dx * theta) / tau_w
+          - PI = 0.8*(beta_c+0.5)**(0.75)
           - u_tau = sqrt(tau_w / rho)
           - Zone classification based on dp/dx:
               FPG if dp/dx < 0, APG if dp/dx > 0, and ZPG otherwise.
@@ -438,7 +438,7 @@ class BoundaryLayerExtractor:
                 )
                 dUdh = np.diff(line[0][0]['Umag'])/dh[0:-1]
                 tau_w = self.mu_lam * dUdh[0]
-                #dpdx = dpdx_array[ind_extract]
+                u_tau = np.sqrt(tau_w / rho_local) if rho_local != 0 else 0.0
                 
                 dpdx = gradPds
                 
@@ -446,11 +446,11 @@ class BoundaryLayerExtractor:
                 rho_local = self.separated[zn][0]['rho'][ind_extract]
                 nu = self.mu_lam / rho_local
                 
-                beta_c = (dpdx * delta_star) / tau_w if tau_w != 0 else 0.0
-                Rt = (Ue * line[0][0]['h'][idx_delta99] / nu)  if nu != 0 else 0.0
+                beta_c = (dpdx * theta) / tau_w if tau_w != 0 else 0.0
+                Rt = delta_star * (u_tau/Ue) if Ue != 0 else 0.0
+                
                 Rtheta = (Ue * theta / nu) if nu != 0 else 0.0
-                PI = (dpdx * theta) / tau_w if tau_w != 0 else 0.0
-                u_tau = np.sqrt(tau_w / rho_local) if rho_local != 0 else 0.0
+                PI = 0.8 * (beta_c + 0.5)**(0.75) if beta_c != 0 else 0.0
                 
                 if dpdx < -tol:
                     zone_class = "FPG"
