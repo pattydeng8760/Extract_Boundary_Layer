@@ -9,9 +9,9 @@ args_dict = {
     "pref": 101325.0,
     "mu_lam": 1.78e-5,
     "chord": 0.3048,
-    "alpha": 5,
+    "alpha": 10,
     "input_dir": "../../",
-    "mesh": "MESH_ZONE_Apr24/Bombardier_5AOA_Combine_Apr24.mesh.h5",
+    "mesh": "MESH_ZONE_Nov24/Bombardier_10AOA_Combine_Nov24.mesh.h5",
     "solution": "PostProc/Average_Field/Averaged_Solution_Reduced_Variables.h5",
     "probe_files": [
        "Group_A_Probe_Data.h5", "Group_B_Probe_Data.h5", "Group_C_Probe_Data.h5",

@@ -437,15 +437,13 @@ class BoundaryLayerExtractor:
                     x=line[0][0]['h'][:idx_delta99]
                 )
                 dUdh = np.diff(line[0][0]['Umag'])/dh[0:-1]
+                # Local density extracted from the profile (assumed available)
+                rho_local = self.separated[zn][0]['rho'][ind_extract]
+                nu = self.mu_lam / rho_local
                 tau_w = self.mu_lam * dUdh[0]
                 u_tau = np.sqrt(tau_w / rho_local) if rho_local != 0 else 0.0
                 
                 dpdx = gradPds
-                
-                # Local density extracted from the profile (assumed available)
-                rho_local = self.separated[zn][0]['rho'][ind_extract]
-                nu = self.mu_lam / rho_local
-                
                 beta_c = (dpdx * theta) / tau_w if tau_w != 0 else 0.0
                 Rt = delta_star * (u_tau/Ue) if Ue != 0 else 0.0
                 
