@@ -32,7 +32,7 @@ class ProbeDataExporter:
        and saved in a file named "T<alpha>_WPS_A<sensor_tag_without_space>_Spectrum.csv".
     """
     
-    def __init__(self, probe_filepath, chord:float=0.3048, Uref:float=30.0, alpha:int=10, LE_dist:float=1.245):
+    def __init__(self, probe_filepath, chord:float=0.3048, Uref:float=30.0, alpha:int=10, LE_dist:float=1.245, density:bool = True):
         """
         Parameters:
             probe_filepath: Path to the HDF5 file containing the probe data.
@@ -47,6 +47,7 @@ class ProbeDataExporter:
         self.Uref = Uref
         self.alpha = alpha
         self.LE_dist = LE_dist
+        self.density = density
         match = re.search(r'Group_([A-Z])_Probe', probe_filepath)  # Searches for 'Group_A_Probe' pattern.
         if match:
             self.group_letter = match.group(1)
@@ -124,7 +125,8 @@ class ProbeDataExporter:
                 St = freq * self.chord / self.Uref
                 # Convert to decibels relative to 20 micropascals
                 p_ref = 2e-5  # Pa
-                PSD_dB = 10 * np.log10(PSD / (p_ref**2))
+                scaling_factor = - 10*np.log10(np.mean(np.diff(freq))) if self.density else 1
+                PSD_dB = 10 * np.log10(PSD / (p_ref**2))  + scaling_factor
                 # Prepare the CSV data: two columns [St, psd]
                 spectrum_data = np.column_stack((St, PSD_dB))
                 # Extract sensor tag from group name. For example, "Probe_01" -> "A01"
