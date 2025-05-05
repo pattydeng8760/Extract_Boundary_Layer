@@ -57,7 +57,8 @@ class BoundaryLayerExtractor:
         extract_points_xcoor = []
         with h5py.File(probe_file, "r") as f:
             probe_groups = sorted([key for key in f.keys() if key.startswith("Probe_")])
-            for group in probe_groups:
+            self.origin = np.zeros((len(probe_groups), 3))
+            for idx, group in enumerate(probe_groups):
                 tag_num = group.split("_")[1]
                 match = re.search(r'Group_([A-Z])_Probe', probe_file)  # Searches for 'Group_A_Probe' pattern.
                 cut_z = f[group].attrs["z"]
@@ -68,23 +69,45 @@ class BoundaryLayerExtractor:
                 # Read the x value from the group's attributes
                 x_val = f[group].attrs["x"]
                 extract_points_xcoor.append(x_val)
+                #self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
+                if any(group in probe_file for group in ["Group_A", "Group_C", "Group_D"]):
+                    self.extraction_side = 'suction'
+                    self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
+                elif any(group in probe_file for group in ["Group_B", "Group_E"]) and idx<2:
+                    self.extraction_side = 'pressure'
+                    probe_file_new = probe_file.replace("Group_B", "Group_A").replace("Group_E", "Group_D")
+                    with h5py.File(probe_file_new, "r") as f_rev:
+                        group = probe_groups[idx]
+                        cut_z = f_rev[group].attrs["z"]
+                        self.origin[idx,:] = np.array([f_rev[group].attrs['x'], f_rev[group].attrs['y'], cut_z])
+                elif any(group in probe_file for group in ["Group_B", "Group_E"]) and idx>1:
+                    self.extraction_side = 'pressure'
+                    cut_z = f[group].attrs["z"]
+                    self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
+                    #self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
+                elif "Group_F" in probe_file:
+                    self.extraction_side = 'tip'
+                    self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
+                #self.origin[idx,:] = np.array([f[group].attrs['x'], f[group].attrs['y'], cut_z])
             if "Group_F" in probe_file:
                 group1 = np.array([f['Probe_01'].attrs['x'], f['Probe_01'].attrs['y'], f['Probe_01'].attrs['z']])
                 group9 = np.array([f['Probe_09'].attrs['x'], f['Probe_09'].attrs['y'], f['Probe_09'].attrs['z']])
                 line_group = group9-group1
-                self.normal = np.array([-line_group[1], line_group[0], 0])
-                self.origin = group1
+                #self.normal = np.array([-line_group[1], line_group[0], 0])
+                self.normal = np.array([0,1,0])             # Normal vector for the tip such that the plane is in the y-direction and the cut is streamwise
+                #self.origin = group1
                 self.extraction_side = 'tip'
             else:
                 self.normal = np.array([0, 0, 1])
-                self.origin = np.array([0, 0, cut_z])
-                self.extraction_side = 'both'
-            if any(group in probe_file for group in ["Group_A", "Group_C", "Group_D"]):
-                self.extraction_side = 'suction'
-            elif any(group in probe_file for group in ["Group_B", "Group_E"]):
-                self.extraction_side = 'pressure'
-            elif "Group_F" in probe_file:
-                self.extraction_side = 'tip'
+                #self.origin = np.array([0, 0, cut_z])
+                #self.extraction_side = 'both'
+            # if any(group in probe_file for group in ["Group_A", "Group_C", "Group_D"]):
+            #     self.extraction_side = 'suction'
+            # elif any(group in probe_file for group in ["Group_B", "Group_E"]):
+            #     self.extraction_side = 'pressure'
+            # elif "Group_F" in probe_file:
+            #     self.extraction_side = 'tip'
+
 
         self.extract_points_xcoor = extract_points_xcoor
         self.sensors_tag = sensor_tags
@@ -97,7 +120,7 @@ class BoundaryLayerExtractor:
         # Data containers
         self.solution = None
         self.profile = None
-        self.separated = None
+        #self.separated = None
         
 
     def load_data(self):
@@ -146,27 +169,44 @@ class BoundaryLayerExtractor:
         myt['tolerance_decimals'] = 13
         merged = myt.execute()
 
-        # Cut the surface with a plane to extract the profile at the specific line
+        # Cut the surface with a plane to extract the profile in the streamwise direction (normal [0,0,1])
         t = Treatment('cut')
         t['base'] = merged
         t['type'] = 'plane'
-        t['origin'] = self.origin        # Default cut_z value if not provided
+        t['origin'] = self.origin[0]        # Default cut_z value if not provided
         t['normal'] = self.normal                # Default normal value if not provided
         
         profil_2d = t.execute()
         # Unwrap the resulting line
         t = Treatment('unwrapline')
         t['base'] = profil_2d
-        self.profile = t.execute()
+        profile_stream = t.execute()        
+        profile_span = []
+        del profil_2d
+        # Perform an additional cut in the spanwise direction to separate the profile
+        for idx, origin in enumerate(self.origin):
+            t = Treatment('cut')
+            t['base'] = merged
+            t['type'] = 'plane'
+            t['origin'] = origin
+            t['normal'] = np.array([1, 0, 0])  if np.array_equal(self.normal, np.array([0, 0, 1]) ) else np.array([0, 0, 1])
+            profil_2d = t.execute()
+            # Unwrap the resulting line
+            t = Treatment('unwrapline')
+            t['base'] = profil_2d
+            profilespan = t.execute()
+            profile_span.append(profilespan)
+        return profile_stream, profile_span
+        
 
-    def separate_profile(self):
+    def separate_profile(self, profile):
         """
         Splits the unwrapped airfoil profile into two zones (suction and pressure sides)
         using a leading‑ and trailing‑edge identification.
         """
-        x_coord = self.profile[0][0]['x']
-        y_coord = self.profile[0][0]['y']
-        z_coord = self.profile[0][0]['z']
+        x_coord = profile[0][0]['x']
+        y_coord = profile[0][0]['y']
+        z_coord = profile[0][0]['z']
         coords = np.array([x_coord, y_coord, z_coord]).T
         
         # Determine leading and trailing edges via maximum distance between points.
@@ -206,10 +246,10 @@ class BoundaryLayerExtractor:
                 side2_name = 'suction_side'
             d2, indices_S2 = np.unique(np.concatenate([dist_from_LE[idx_TE:], dist_from_LE[:idx_LE + 1]]),
                                        return_index=True)
-            for var in self.profile[0][0].keys():
-                separated[side1_name][0][var] = self.profile[0][0][var][idx_LE:idx_TE + 1][indices_S1]
-                separated[side2_name][0][var] = np.concatenate([self.profile[0][0][var][idx_TE:],
-                                                                 self.profile[0][0][var][:idx_LE + 1]])[indices_S2]
+            for var in profile[0][0].keys():
+                separated[side1_name][0][var] = profile[0][0][var][idx_LE:idx_TE + 1][indices_S1]
+                separated[side2_name][0][var] = np.concatenate([profile[0][0][var][idx_TE:],
+                                                                 profile[0][0][var][:idx_LE + 1]])[indices_S2]
         else:
             d2, indices_S1 = np.unique(np.concatenate([dist_from_LE[idx_LE:], dist_from_LE[:idx_TE + 1]]),
                                        return_index=True)
@@ -224,49 +264,51 @@ class BoundaryLayerExtractor:
                 side1_name = 'pressure_side'
                 side2_name = 'suction_side'
             d2, indices_S2 = np.unique(dist_from_LE[idx_TE:idx_LE + 1], return_index=True)
-            for var in self.profile[0][0].keys():
-                separated[side1_name][0][var] = np.concatenate([self.profile[0][0][var][idx_LE:],
-                                                                 self.profile[0][0][var][:idx_TE + 1]])[indices_S1]
-                separated[side2_name][0][var] = self.profile[0][0][var][idx_TE:idx_LE + 1][indices_S2]
+            for var in profile[0][0].keys():
+                separated[side1_name][0][var] = np.concatenate([profile[0][0][var][idx_LE:],
+                                                                 profile[0][0][var][:idx_TE + 1]])[indices_S1]
+                separated[side2_name][0][var] = profile[0][0][var][idx_TE:idx_LE + 1][indices_S2]
         
-        self.separated = separated
+        return separated
 
-    def compute_profile_derivatives(self):
+    def compute_profile_derivatives(self, separated):
         """
         For each separated zone, compute the local tangents (first derivatives) and
         the curvilinear abscissa along the profile, and derive the pressure gradient dPdS.
         """
-        for zn in self.separated.keys():
+        for zn in separated.keys():
             # Compute tangents for each coordinate
             for coor in ['x', 'y', 'z']:
-                data = self.separated[zn][0][coor]
+                data = separated[zn][0][coor]
                 dx_c = data[1:] - data[:-1]
                 dx = np.zeros_like(data)
                 dx[1:-1] = (dx_c[1:] + dx_c[:-1]) * 0.5
                 dx[0] = dx_c[0]
                 dx[-1] = dx_c[-1]
-                self.separated[zn][0]['d' + coor] = dx
+                separated[zn][0]['d' + coor] = dx
             
             # Create curvilinear abscissa
-            npts = np.size(self.separated[zn][0]['x'])
+            npts = np.size(separated[zn][0]['x'])
             ds = np.zeros(npts)
             ds[0] = 0
             ds[1:] = np.sqrt(
-                (self.separated[zn][0]['x'][1:] - self.separated[zn][0]['x'][:-1])**2 +
-                (self.separated[zn][0]['y'][1:] - self.separated[zn][0]['y'][:-1])**2 +
-                (self.separated[zn][0]['z'][1:] - self.separated[zn][0]['z'][:-1])**2
+                (separated[zn][0]['x'][1:] - separated[zn][0]['x'][:-1])**2 +
+                (separated[zn][0]['y'][1:] - separated[zn][0]['y'][:-1])**2 +
+                (separated[zn][0]['z'][1:] - separated[zn][0]['z'][:-1])**2
             )
             s = np.cumsum(ds)
             s = s / s[-1]
-            self.separated[zn][0]['abscisse_curviligne'] = s
+            separated[zn][0]['abscisse_curviligne'] = s
             
             # Compute dP/dS along the profile
             ds_grad = np.gradient(s)
-            dPsds = np.gradient(self.separated[zn][0]['P']) / ds_grad
+            dPsds = np.gradient(separated[zn][0]['P']) / ds_grad
             dPsds = savgol_filter(dPsds, window_length=71, polyorder=2)  # Smoothing the gradient
-            self.separated[zn][0]['dPdS'] = dPsds
+            separated[zn][0]['dPdS'] = dPsds
+        
+        return separated
 
-    def extract_BL_parameters_and_export(self):
+    def extract_BL_parameters_and_export(self, separated_stream, separated_span):
         """
         For each separated zone (or for the specified extraction_side) and for each specified extraction x-location,
         extract a BL line (using a line treatment normal to the profile), compute the boundary layer parameters,
@@ -291,6 +333,7 @@ class BoundaryLayerExtractor:
         csv_rows = []
         tol = 1e-5  # Tolerance for pressure gradient classification
         row_id = 0
+        self.separated = separated_stream
         print('\n----> Extracting boundary layer')
         # Determine which zones to process based on the flag.
         if self.extraction_side in ["suction", "pressure"]:
@@ -323,6 +366,10 @@ class BoundaryLayerExtractor:
                 gradPds = self.separated[zn][0]['dPdS'][ind_extract]
                 Cp = self.separated[zn][0]['Cp'][ind_extract]
                 
+                # The pressure gradient from the spanwise profile
+                _,ind_extract_span, _ = separated_span[ind][(zn,)].closest(self.origin[ind], coordinates=['x','y','z' ])
+                gradPds_span = separated_span[ind][zn][0]['dPdS'][ind_extract_span]
+                
                 # Tangent vector at the extraction point
                 T_extract = [self.separated[zn][0]['dx'][ind_extract],
                              self.separated[zn][0]['dy'][ind_extract],
@@ -330,7 +377,7 @@ class BoundaryLayerExtractor:
                 norm_T_vec = np.linalg.norm(T_extract)
                 T_extract = np.array(T_extract) / norm_T_vec
                 
-                # Corrected: index the wall stresses to get scalar values for Cf
+                # Index the wall stresses to get scalar values for Cf
                 Cf = (self.separated[zn][0]['wall_Stress_x'][ind_extract] * T_extract[0] +
                       self.separated[zn][0]['wall_Stress_y'][ind_extract] * T_extract[1] +
                       self.separated[zn][0]['wall_Stress_z'][ind_extract] * T_extract[2])
@@ -343,7 +390,8 @@ class BoundaryLayerExtractor:
                     N_extract = np.cross(T_extract, chi_angle_sign * pz)
                 elif self.extraction_side == 'tip':
                     N_extract = np.array([0,0,1])
-                # Define the end point for the BL line (normal direction)
+                    
+                # Extract the velocity profile 
                 Pt_extract_end_line = np.array(Pt_extract) + self.h_max * N_extract
                 
                 t_line = Treatment('line')
@@ -445,7 +493,9 @@ class BoundaryLayerExtractor:
                 u_tau = np.sqrt(tau_w / rho_local) if rho_local != 0 else 0.0
                 
                 dpdx = gradPds
+                dpdx_span = gradPds_span
                 beta_c = (dpdx * theta) / tau_w if tau_w != 0 else 0.0
+                beta_c_span = (dpdx_span * theta) / tau_w if tau_w != 0 else 0.0
                 Rt = delta*(u_tau**2)/(Ue*nu) if Ue != 0 else 0.0
                 
                 Rtheta = (Ue * theta / nu) if nu != 0 else 0.0
@@ -478,6 +528,7 @@ class BoundaryLayerExtractor:
                     Cp,
                     Cf,
                     beta_c,
+                    beta_c_span,
                     Rt,
                     Rtheta,
                     PI,
@@ -486,6 +537,7 @@ class BoundaryLayerExtractor:
                     rho_local,
                     nu,
                     dpdx,
+                    dpdx_span, 
                 ]
                 csv_rows.append(csv_row)
                 row_id += 1
@@ -506,7 +558,7 @@ class BoundaryLayerExtractor:
                        comments='')
         
         csv_header = ["id", "zone", "x", "y", "z", "chord", "Uref", "Ue", "delta", "delta_star", "theta", "tau_w",
-                      "cp", "cf", "beta_c", "Rt", "Rtheta", "PI", "u_tau", "mu", "rho", "nu", "dpdx"]
+                      "cp", "cf", "beta_c","beta_c_span", "Rt", "Rtheta", "PI", "u_tau", "mu", "rho", "nu", "dpdx", "dpdx_span"]
         file_temp = "T"+self.sensors_tag[0][0]+f"{self.alpha:02d}_BLparams_zones.csv"
         csv_filename = os.path.join(self.export_dir, file_temp)
         if os.path.exists(csv_filename):
@@ -559,10 +611,18 @@ class BoundaryLayerExtractor:
         """
         print(f'\n{"Beginning Boundary Layer Extraction":.^60}\n')
         self.load_data()
-        self.extract_profile()
-        self.separate_profile()
-        self.compute_profile_derivatives()
+        # Extract the streamwise and spanwise airfoil profiles
+        profile_stream, profile_span_tmp = self.extract_profile()
+        # Separate the profiles into suction and pressure sides for both the streamwise and spanwise profiles
+        separated_stream = self.separate_profile(profile_stream)
+        separated_stream = self.compute_profile_derivatives(separated_stream)
+        separated_span = []
+        for idx, profile in enumerate(profile_span_tmp):
+            separated_span_tmp = self.separate_profile(profile)
+            separated_span_tmp = self.compute_profile_derivatives(separated_span_tmp)
+            separated_span.append(separated_span_tmp)
+        # Store the separated profiles in the class attribute
         self.write_flow_conditions()
-        results = self.extract_BL_parameters_and_export()
+        results = self.extract_BL_parameters_and_export(separated_stream,separated_span)
         print(f'\n{"Complete Boundary Layer Extraction":.^60}\n')
         return results
