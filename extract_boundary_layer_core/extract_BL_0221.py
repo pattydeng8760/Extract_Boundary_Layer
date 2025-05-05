@@ -212,7 +212,8 @@ class BoundaryLayerExtractor:
                 group1 = np.array([f['Probe_01'].attrs['x'], f['Probe_01'].attrs['y'], f['Probe_01'].attrs['z']])
                 group9 = np.array([f['Probe_09'].attrs['x'], f['Probe_09'].attrs['y'], f['Probe_09'].attrs['z']])
                 line_group = group9-group1
-                self.normal = np.array([-line_group[1], line_group[0], 0])
+                #self.normal = np.array([-line_group[1], line_group[0], 0])
+                self.normal = np.array([0,1,0])
                 self.origin = group1
                 self.extraction_side = 'tip'
             if "Group_A" or "Group_C" or "Group_D" in probe_file:
