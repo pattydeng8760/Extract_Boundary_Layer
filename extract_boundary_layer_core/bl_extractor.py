@@ -511,7 +511,7 @@ class BoundaryLayerExtractor:
                 x_norm = ((Pt_extract[0] - self.LE_dist)*np.cos(self.alpha*np.pi/180)) / chord
                 #print("extracting at {0} with original {1}".format(x_norm, Pt_extract[0]))
                 y_norm = Pt_extract[1] / chord
-                z_norm = 1- (np.abs(Pt_extract[2]) -0.1034)/chord
+                z_norm = min((np.abs(Pt_extract[2]) - 0.1034) / chord, 1)
                 csv_row = [
                     f"{row_id:03d}",
                     zone_class,
