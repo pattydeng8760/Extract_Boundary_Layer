@@ -93,8 +93,8 @@ class BoundaryLayerExtractor:
                 group1 = np.array([f['Probe_01'].attrs['x'], f['Probe_01'].attrs['y'], f['Probe_01'].attrs['z']])
                 group9 = np.array([f['Probe_09'].attrs['x'], f['Probe_09'].attrs['y'], f['Probe_09'].attrs['z']])
                 line_group = group9-group1
-                #self.normal = np.array([-line_group[1], line_group[0], 0])
-                self.normal = np.array([0,1,0])             # Normal vector for the tip such that the plane is in the y-direction and the cut is streamwise
+                self.normal = np.array([-line_group[1], line_group[0], 0])
+                #self.normal = np.array([0,1,0])             # Normal vector for the tip such that the plane is in the y-direction and the cut is streamwise
                 #self.origin = group1
                 self.extraction_side = 'tip'
             else:
@@ -357,7 +357,7 @@ class BoundaryLayerExtractor:
             
             for ind, x_point in enumerate(self.extract_points_xcoor):
                 # Find the closest point on the profile in the x direction.
-                zone_obj, ind_extract, _ = self.separated[(zn,)].closest([x_point, ], coordinates=['x', ])
+                zone_obj, ind_extract, _ = self.separated[(zn,)].closest(self.origin[ind], coordinates=['x','y','z' ])
                 Pt_extract = [self.separated[zn][0]['x'][ind_extract],
                               self.separated[zn][0]['y'][ind_extract],
                               self.separated[zn][0]['z'][ind_extract]]
@@ -511,7 +511,7 @@ class BoundaryLayerExtractor:
                 x_norm = ((Pt_extract[0] - self.LE_dist)*np.cos(self.alpha*np.pi/180)) / chord
                 #print("extracting at {0} with original {1}".format(x_norm, Pt_extract[0]))
                 y_norm = Pt_extract[1] / chord
-                z_norm = np.abs(Pt_extract[2] / chord)
+                z_norm = 1- (np.abs(Pt_extract[2]) -0.1034)/chord
                 csv_row = [
                     f"{row_id:03d}",
                     zone_class,
