@@ -82,6 +82,7 @@ class ProbeDataExporter:
                 zBL = group.attrs["z"]
                 xBL = ((xBL - self.LE_dist)*np.cos(self.alpha*np.pi/180))/self.chord
                 yBL = yBL/self.chord
+                zBL = 1 - max((np.abs(zBL) - 0.1034) / self.chord, 0) if self.group_letter != 'A' else 0.0
                 # For this example, we assume the WPS data are the same as the BL data.
                 idx_str = f"{i:03d}"
                 row = [idx_str, xBL, yBL, zBL, idx_str, xBL, yBL, zBL, 0]
